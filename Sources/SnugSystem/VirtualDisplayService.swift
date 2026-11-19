@@ -58,6 +58,8 @@ public final class VirtualDisplayService: VirtualDisplays {
             Log.warn("要撤的屏 #\(id) 不是本进程建的")
             return !Self.isOnline(id)
         }
+        // 指针还停在这块屏上时先带回别的屏：屏一撤，这个坐标就没有屏了，指针会“找不到”（issue #29）
+        Cursor.leave(id)
         autoreleasepool { displays[id] = nil }
         fits[id] = nil
         guard await wait(id, online: false, timeout: Self.offlineTimeout) else {
