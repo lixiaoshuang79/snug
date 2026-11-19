@@ -138,13 +138,7 @@ final class AppController: Sendable {
         refreshTrust()
         screenshots.expire()
         let sample = sensor.sample(now: Date())
-        let transitions = session.update(sample.signals, now: now)
-        for t in transitions { Log.info("会话：\(Self.describe(t))") }
-        // 远程结束先说一声一块屏都不要，再按「不在远程」重算（只剩常驻的主屏）。不先说「不要」的话，下一次在同一拍里
-        // 开始时前后要的屏一样，上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
-        if transitions.contains(.ended) { desks.setWishes([]) }
-        applyPlan()
-        desks.setRemote(session.inEpisode)
+        handle(session.update(sample.signals, now: now))
         if now.timeIntervalSince(lastVerifyAt) >= Self.verifyInterval {
             lastVerifyAt = now
             desks.verifyPlacement()
@@ -152,10 +146,30 @@ final class AppController: Sendable {
             desks.settleDisplays()
             refreshScreenRecording()
         }
-        state.update(\.connection, session.isConnected ? .connected : (session.inEpisode ? .reconnecting : .idle))
-        state.update(\.controllers, session.controllers)
         // UU 一次只让一台设备控制（V12），推流只有一路画面，在推哪块屏直接看它
         state.update(\.streamedDisplay, sample.streamingDisplay)
+    }
+
+    /// 会话变化统一在这里落地（每拍和菜单的「立即结束」共用）
+    private func handle(_ transitions: [SessionTransition]) {
+        for t in transitions { Log.info("会话：\(Self.describe(t))") }
+        if transitions.contains(.ended) {
+            // 远程结束先说一声一块屏都不要，再按「不在远程」重算（只剩常驻的主屏）。不先说「不要」的话，下一次在同一拍里
+            // 开始时前后要的屏一样，上一次在手机上退出的屏会带进这一次。同一拍里先「不要」再「要」不会撤屏重建（DeskSet 排队时读的是最新结论）
+            desks.setWishes([])
+        }
+        applyPlan()
+        desks.setRemote(session.inEpisode)
+        state.update(\.connection, session.isConnected ? .connected : (session.inEpisode ? .reconnecting : .idle))
+        state.update(\.controllers, session.controllers)
+    }
+
+    /// 不等重连窗口，立即结束本次远程（菜单栏「立即结束本次远程」，issue #29）。
+    /// 只在重连等待期里有意义：不在这段时间里时 session.endNow() 什么都不做
+    func endSessionNow() {
+        guard let change = session.endNow() else { return }
+        Log.info("会话：立即结束（不等重连窗口）")
+        handle([change])
     }
 
     /// 按此刻的配置和会话算出要哪些屏，交给 DeskSet（结论没变就什么都不做）

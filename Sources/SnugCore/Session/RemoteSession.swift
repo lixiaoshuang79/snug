@@ -47,6 +47,11 @@ public struct RemoteSession: Sendable {
         return out
     }
 
+    /// 用户不等重连窗口，立即结束本次会话；不在重连窗口里时什么都不做
+    public mutating func endNow() -> SessionTransition? {
+        episode.endNow().map { _ in .ended }
+    }
+
     public mutating func noteSelfInducedChange(at date: Date) {
         tracker.noteSelfInducedChange(at: date)
     }

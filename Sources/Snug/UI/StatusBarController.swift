@@ -42,6 +42,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         menu.addItem(status())
+        // 断开了还在等重连的 15 秒里给个出口，不用干等（issue #29）
+        if state.connection == .reconnecting { menu.addItem(action("立即结束本次远程", #selector(endSessionNow), symbol: "xmark.circle")) }
         if state.legacyAppRunning { menu.addItem(action("退出旧版 UU远程伴侣", #selector(quitLegacy), symbol: "xmark.circle")) }
         // 主屏常驻、本机看不到时，菜单栏是回到 Mac 前最好找的出口
         if state.config.mainScreen != nil { menu.addItem(action("取消设为主屏", #selector(cancelMain), symbol: "menubar.rectangle")) }
@@ -79,6 +81,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func quitLegacy() { intents.quitLegacyApp() }
     @objc private func cancelMain() { intents.setMainScreen(nil) }
+    @objc private func endSessionNow() { intents.endSessionNow() }
     @objc private func openSettings() { navigation.openSettings(on: clickedScreen?.displayID) }
     @objc private func openAbout() { navigation.openAbout(on: clickedScreen?.displayID) }
     /// 在哪块屏的菜单栏点，就在哪块屏打开

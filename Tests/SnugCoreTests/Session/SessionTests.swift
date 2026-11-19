@@ -24,6 +24,25 @@ struct SessionEpisodeTests {
         #expect(e.connected(at: at(50)) == .began)
     }
 
+    @Test("重连窗口里点「立即结束」：当场结束，不再等满 15 秒（issue #29）")
+    func endNow() {
+        var e = SessionEpisode()
+        _ = e.connected(at: at(0))
+        _ = e.disconnected(at: at(1))
+        #expect(e.endNow() == .ended)
+        #expect(!e.isActive)
+        #expect(e.advance(to: at(2)) == nil)
+    }
+
+    @Test("不在重连窗口里时「立即结束」什么都不做")
+    func endNowOutsideWindow() {
+        var e = SessionEpisode()
+        #expect(e.endNow() == nil)
+        _ = e.connected(at: at(0))
+        #expect(e.endNow() == nil)
+        #expect(e.isActive)
+    }
+
     @Test("窗口过了才来的连入：先结束旧会话，再开始新会话")
     func lateReconnect() {
         var e = SessionEpisode()
@@ -60,6 +79,16 @@ struct RemoteSessionTests {
         _ = s.update(present, now: at(0))
         _ = s.update(absent, now: at(2.0))
         #expect(s.update(present, now: at(30)) == [.ended, .began(controllers: ["iPhone"])])
+    }
+
+    @Test("重连窗口里立即结束：透传 ended，会话随之结束（issue #29）")
+    func endNow() {
+        var s = RemoteSession()
+        _ = s.update(present, now: at(0))
+        _ = s.update(absent, now: at(2.0))
+        #expect(s.endNow() == .ended)
+        #expect(!s.inEpisode)
+        #expect(s.update(absent, now: at(3.0)) == [])
     }
 
     @Test("控制端变化透传为 controllersChanged")

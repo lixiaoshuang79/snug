@@ -121,6 +121,8 @@ protocol AppIntents: AnyObject, Sendable {
     func openLoginItemsSettings()
     func markWelcomed()
     func quitLegacyApp()
+    /// 不等重连窗口，立即结束本次远程（断开后的重连等待期里才有意义，issue #29）
+    func endSessionNow()
     func quit()
     func checkForUpdates()
     func installUpdate()

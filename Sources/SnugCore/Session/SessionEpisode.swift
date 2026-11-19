@@ -42,6 +42,13 @@ public struct SessionEpisode: Sendable {
         return .interrupted
     }
 
+    /// 不再等重连窗口：用户在菜单里点「立即结束」，回到 idle
+    public mutating func endNow() -> EpisodeChange? {
+        guard case .interrupted = phase else { return nil }
+        phase = .idle
+        return .ended
+    }
+
     /// 重连窗口过了就结束会话
     public mutating func advance(to now: Date) -> EpisodeChange? {
         guard case .interrupted(let since) = phase, now.timeIntervalSince(since) > Self.reconnectWindow else { return nil }
